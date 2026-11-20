@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEK FOTO ANTI FAKER BY FASH</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body {
+    min-height:100vh;
+    background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+    color:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:16px;
+  }
+  .app {
+    width:100%;
+    max-width:420px;
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:20px;
+    padding:22px;
+    backdrop-filter:blur(12px);
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  }
+  h1 {
+    text-align:center;
+    font-size:20px;
+    letter-spacing:1px;
+    background:linear-gradient(90deg,#00e5ff,#ff00cc);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    margin-bottom:4px;
+  }
+  .sub { text-align:center; font-size:11px; color:#9aa; margin-bottom:18px; letter-spacing:2px; }
+  .upload-box {
+    border:2px dashed rgba(0,229,255,0.5);
+    border-radius:14px;
+    padding:26px 12px;
+    text-align:center;
+    cursor:pointer;
+    transition:.3s;
+    margin-bottom:16px;
+    display: block;
+  }
+  .upload-box:hover { background:rgba(0,229,255,0.08); border-color:#00e5ff; }
+  .upload-box .icon { font-size:38px; display:block; margin-bottom:8px; }
+  .upload-box p { font-size:13px; color:#bcd; }
+  input[type=file] { display:none; }
+  #preview {
+    width:100%;
+    border-radius:12px;
+    margin-bottom:14px;
+    display:none;
+    max-height:260px;
+    object-fit:contain;
+    background:#000;
+  }
+  button {
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    font-size:15px;
+    font-weight:bold;
+    letter-spacing:1px;
+    cursor:pointer;
+    background:linear-gradient(90deg,#00e5ff,#ff00cc);
+    color:#fff;
+    transition:.3s;
+  }
+  button:hover { opacity:.88; transform:scale(1.01); }
+  button:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+  #result {
+    margin-top:16px;
+    padding:16px;
+    border-radius:12px;
+    font-size:13px;
+    line-height:1.6;
+    display:none;
+    white-space:pre-wrap;
+  }
+  .asli { background:rgba(0,255,140,0.12); border:1px solid #00ff8c; color:#9dffce; }
+  .faker { background:rgba(255,60,60,0.12); border:1px solid #ff4d4d; color:#ffb3b3; }
+  .netral { background:rgba(255,200,0,0.12); border:1px solid #ffc800; color:#ffe699; }
+  .label { font-size:11px; color:#889; text-align:center; margin-top:16px; letter-spacing:1px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>CEK FOTO ANTI FAKER</h1>
+  <div class="sub">BY FASH</div>
+
+  <label class="upload-box" for="fileInput">
+    <span class="icon">📁</span>
+    <p>Tap untuk pilih foto dari galeri</p>
+  </label>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <img id="preview" alt="Preview">
+
+  <button id="cekBtn" disabled>🔍 CEK SEKARANG</button>
+
+  <div id="result"></div>
+  <div class="label">© CEK FOTO ANTI FAKER BY FASH</div>
+</div>
+
+<script>
+// API Key Anda
+const API_KEY_ANDA = "AQ.Ab8RN6KLpkuKoInJzEFDFKyow0ntyaGUvmOkH1GMVBudfi4W8g"; 
+
+const fileInput = document.getElementById('fileInput');
+const preview   = document.getElementById('preview');
+const cekBtn    = document.getElementById('cekBtn');
+const result    = document.getElementById('result');
+
+let selectedFile = null;
+let base64Image = "";
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedFile = file;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    preview.src = ev.target.result;
+    preview.style.display = 'block';
+    base64Image = ev.target.result.split(',')[1]; 
+    cekBtn.disabled = false;
+    result.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+});
+
+// Fungsi untuk memanggil API dengan percobaan model cadangan
+async function analyzeImage() {
+  const promptText = `
+    Analisis gambar ini dengan detail. Tentukan apakah gambar ini:
+    1. Foto Asli (diambil dengan kamera)
+    2. Gambar AI (dihasilkan oleh generator seperti Midjourney, DALL-E, Stable Diffusion)
+    3. Foto Editan / Fake (manipulasi digital, wajah palsu, dll)
+    
+    Berikan jawaban dengan format:
+    STATUS: [ASLI / AI / EDITAN]
+    ALASAN: [Sebutkan detail visual yang mencurigakan atau meyakinkan, seperti pencahayaan, bayangan, tekstur kulit, latar belakang, jari tangan, teks, dll]
+    SKOR KECURIGAAN: [0-100, di mana 100 adalah paling palsu]
+  `;
+
+  // Daftar model dari yang terbaru ke yang paling stabil
+  const models = ['gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      console.log(`Mencoba model: ${model}...`);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY_ANDA}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: promptText },
+              { inline_data: { mime_type: selectedFile.type, data: base64Image } }
+            ]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "Gagal");
+      }
+
+      const data = await response.json();
+      return data.candidates[0].content.parts[0].text; // BERHASIL! Kembalikan hasil
+
+    } catch (err) {
+      console.warn(`Model ${model} gagal:`, err.message);
+      lastError = err;
+      // Lanjut ke model berikutnya jika gagal
+    }
+  }
+  
+  // Jika semua model gagal
+  throw new Error(lastError.message);
+}
+
+cekBtn.addEventListener('click', async () => {
+  if (!selectedFile || !base64Image) return;
+
+  cekBtn.disabled = true;
+  cekBtn.textContent = '⏳ AI SEDANG MENGANALISIS...';
+  result.style.display = 'none';
+
+  try {
+    const aiText = await analyzeImage();
+
+    let cls = "netral";
+    if (aiText.includes("STATUS: ASLI")) { cls = "asli"; }
+    else if (aiText.includes("STATUS: AI") || aiText.includes("STATUS: EDITAN")) { cls = "faker"; }
+
+    result.className = cls;
+    result.style.display = 'block';
+    result.innerHTML = `
+      <b>HASIL ANALISIS AI:</b><br><br>
+      ${aiText.replace(/\n/g, '<br>')}
+      <br><hr style="border-color:rgba(255,255,255,0.1); margin:10px 0">
+      <i style="font-size:10px;color:#aaa">Dianalisis oleh Google Gemini Vision</i>
+    `;
+
+  } catch (err) {
+    result.className = 'faker';
+    result.style.display = 'block';
+    result.innerHTML = `❌ <b>Gagal menganalisis</b><br><br>${err.message}<br><br><i style="font-size:11px">Server Google sedang sangat sibuk. Silakan tunggu 1-2 menit lalu klik "CEK LAGI".</i>`;
+  } finally {
+    cekBtn.disabled = false;
+    cekBtn.textContent = '🔍 CEK LAGI';
+  }
+});
+</script>
+</body>
+</html>
